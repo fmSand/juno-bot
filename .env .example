@@ -1,0 +1,41 @@
+# Environment mode
+NODE_ENV=development
+
+# Discord
+token= ""
+statusChannelId= ""
+chatSummaryChannelId= ""
+clientId= ""
+guildId= ""
+sourceChannelIds= []
+
+# AI / Ollama
+ollamaUrl= "https://juno-ollama.fly.dev"
+ollamaModel= "tinyllama"
+
+# Database
+HOST=localhost
+DATABASE_NAME=juno_time_dev
+DATABASE_URL=
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=secret
+DIALECT=postgres
+CRUD_USERNAME=crud_user
+CRUD_PASSWORD=crud_password
+
+# Session Timers
+DEFAULT_SESSION_MINUTES=120
+MIN_SESSION_MINUTES=10
+MAX_SESSION_MINUTES=480
+WARN_BEFORE_MINUTES=5
+GRACE_PERIOD_MINUTES=3
+
+# Live Dashboard
+IDLE_REFRESH_MINUTES=1
+
+# Health check
+BOT_ISSUES_CHANNEL_ID=
+ADMIN_USER_IDS=
+HEALTH_FAILURE_THRESHOLD=3
+HEALTH_DB_TIMEOUT_MS=2000
+HEALTH_POLL_SCHEDULE=*/5 * * * *

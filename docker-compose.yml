@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:15
+    container_name: pg_juno_dev
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: juno_time_dev
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:

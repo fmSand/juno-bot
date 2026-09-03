@@ -1,9 +1,24 @@
-const { Client, GatewayIntentBits, Collection } = require("discord.js");
-const { summarizeMessages } = require("./utils/aiSummary");
-const fs = require("fs");
-const config = require("./config.json");
-const cron = require("node-cron");
+import { Client, GatewayIntentBits, Collection, Events } from "discord.js";
+import { restoreTimersOnStartup } from "./features/session/restoreTimers.js";
+import addCommands from "./utils/addCommands.js";
+import addEvents from "./utils/addEvents.js";
+import { required } from "./utils/envHelpers.js";
+// import { required, parseIds } from "./utils/envHelpers.js";
+import addJobs from "./utils/addJobs.js";
+import { adminDb } from "./models/index.js";
+import services from "./services/index.js";
+import { initializeLiveDashboard } from "./features/liveDashboard/setupOnStartup.js";
 
+// ---- Read ENV ----
+const TOKEN = required("token");
+// const STATUS_CHANNEL_ID = required("statusChannelId");
+// const SUMMARY_CHANNEL_ID = required("chatSummaryChannelId");
+// const SOURCE_CHANNEL_IDS = parseIds(required("sourceChannelIds"));
+// Optional (used by aiSummary.js likely)
+// const OLLAMA_URL = process.env.ollamaUrl;
+// const OLLAMA_MODEL = process.env.ollamaModel;
+
+// --- Client Setup ----
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -14,96 +29,32 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Load commands
-const commandFiles = fs
-  .readdirSync("./commands")
-  .filter((file) => file.endsWith(".js"));
-for (const file of commandFiles) {
-  const command = require(`./commands/${file}`);
-  client.commands.set(command.data.name, command);
+// ---- Database Initialization (Phase 1: Sync) ----
+console.log("Initializing database...");
+await adminDb.sequelize.authenticate();
+console.log("✓ Database connected.");
+
+if (process.env.NODE_ENV !== "production") {
+  await adminDb.sequelize.sync({ alter: true });
+  console.log("✓ Database synced.");
 }
 
-// Load events
-const eventFiles = fs.readdirSync("./events");
-for (const file of eventFiles) {
-  const event = require(`./events/${file}`);
-  if (event.once)
-    client.once(event.name, (...args) => event.execute(...args, client));
-  else client.on(event.name, (...args) => event.execute(...args, client));
-}
+// Attach services to interactions for calling on interaction.services[service]
+client.prependListener(Events.InteractionCreate, (interaction) => {
+  interaction.services = services;
+});
+
+// Load commands, events & add cron jobs
+console.log("Loading bot components...");
+await addCommands(client);
+await addEvents(client);
+
+client.once("ready", async (readyClient) => {
+  console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+  await restoreTimersOnStartup(client);
+  await initializeLiveDashboard(client);
+  addJobs(client);
+});
 
 // Log in bot
-client.login(config.token);
-
-// On ready
-client.once("ready", () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
-
-  // Good morning at 09:00
-  cron.schedule(
-    "0 9 * * *",
-    () => {
-      const channel = client.channels.cache.get(config.statusChannelId);
-      if (channel) {
-        channel.send(`☀️ Good morning Juniors! Let's have a productive day!`);
-      }
-    },
-    { timezone: "Europe/Oslo" }
-  );
-
-  // Good night at 22:00
-  cron.schedule(
-    "0 22 * * *",
-    () => {
-      const channel = client.channels.cache.get(config.statusChannelId);
-      if (channel) {
-        channel.send(`🌙 Good night team. Great work today!`);
-      }
-    },
-    { timezone: "Europe/Oslo" }
-  );
-  const sourceChannelIds = config.sourceChannelIds;
-
-  cron.schedule(
-    "0 18 * * 0",
-    async () => {
-      const summaryChannel = client.channels.cache.get(
-        config.chatSummaryChannelId
-      );
-      if (!summaryChannel) return;
-
-      let allMessages = [];
-
-      for (const id of sourceChannelIds) {
-        const channel = client.channels.cache.get(id);
-        if (!channel) continue;
-
-        const fetched = await channel.messages.fetch({ limit: 100 });
-        allMessages = allMessages.concat([...fetched.values()]);
-      }
-
-      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
-      const recentMessages = allMessages
-        .filter(
-          (msg) =>
-            !msg.author.bot &&
-            msg.createdTimestamp > oneWeekAgo &&
-            msg.content.length > 5
-        )
-        .sort((a, b) => a.createdTimestamp - b.createdTimestamp)
-        .slice(-100); // You can adjust this number as needed
-
-      // Create a mock interaction for the summarizeMessages function
-      const mockInteraction = {
-        editReply: async (message) => {
-          console.log("📝 Weekly summary progress:", message);
-        }
-      };
-
-      const summary = await summarizeMessages(recentMessages, mockInteraction);
-      summaryChannel.send(`🧠 **Weekly AI Summary**\n${summary}`);
-    },
-    { timezone: "Europe/Oslo" }
-  );
-});
+await client.login(TOKEN);

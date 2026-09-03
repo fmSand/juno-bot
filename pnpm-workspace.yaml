@@ -1,0 +1,3 @@
+minimumReleaseAge: 43200
+minimumReleaseAgeExclude:
+  - lru-cache # exempted 2026-05-14, safe to remove after 2026-06-13
