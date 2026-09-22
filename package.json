@@ -15,17 +15,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/johnDavid97/Juno-bot.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/johnDavid97/Juno-bot/issues"
-  },
-  "homepage": "https://github.com/johnDavid97/Juno-bot#readme",
   "dependencies": {
     "discord.js": "^14.25.1",
     "dotenv": "^16.6.1",
